@@ -5,3 +5,7 @@ register(
     entry_point='gym_env.envs:OfflineRL',
 )
 
+register(
+    id='carla-v2',
+    entry_point='gym_env.envs:OfflineRL_test',
+)

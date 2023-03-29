@@ -59,6 +59,7 @@ args = parser.parse_args()
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 script_name = os.path.basename(__file__)
 env = gym.make(args.env_name)
+evaluate_env = gym.make('carla-v2')
 
 state_dim = env.observation_space.shape[0]
 action_dim = env.action_space.shape[0]
@@ -269,6 +270,7 @@ def main():
     collision = 0
     success = 0
     frame = 0
+    evaluate_reward = 0
     dataset = {}
     state_for_dataset = []
     next_state_for_dataset = []
@@ -296,6 +298,24 @@ def main():
         print("====================================")
         if args.load: agent.load()
         for i in range(args.num_iteration):
+            if i % 10 == 0:
+                for i in range(112):
+                    test_state = evaluate_env.reset()
+                    for t in range(2000):
+                        action_test = agent.select_action(test_state)
+                        action_test = action_test.clip(env.action_space.low, env.action_space.high)
+                        next_state_test, reward_test, done_test, collision_test = evaluate_env.step(action_test)
+                        evaluate_reward += reward_test
+                        test_state = next_state_test
+                        if done_test and collision_test != 1:
+                            # success += 1
+                            break
+                        if collision_test == 1:
+                            # collision += 1
+                            break
+                agent.writer.add_scalar("test_reward", evaluate_reward / 112, i)
+                evaluate_reward = 0
+
             state = env.reset()
             for t in range(2000):
 
@@ -344,7 +364,7 @@ def main():
                 success = 0
                 collision = 0
             
-            if  len(agent.memory.storage) == args.capacity:
+            if  len(agent.memory.storage) >= args.capacity:
                 break
         
         dataset['state'] = state_for_dataset
